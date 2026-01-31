@@ -10,7 +10,8 @@ import { MockStrategy } from "./mocks/MockStrategy.sol";
 contract MinimalVaultTest is Test {
     MockERC20 token;
     MinimalVault vault;
-    MockStrategy strategy;
+    MockStrategy stratA;
+    MockStrategy stratB;
 
     address user = makeAddr("user");
 
@@ -23,40 +24,64 @@ contract MinimalVaultTest is Test {
         // deal(address(token), user, 1_000e18);
         
 
-        // AND a single (mock) strategy enabled by the owner
-        strategy = new MockStrategy(token, address(vault));
-        vault.enableStrategy(strategy);
+        // AND two strategies configured (we'll route by APY in the test)
+        stratA = new MockStrategy(token, address(vault));
+        stratB = new MockStrategy(token, address(vault));
+        vault.addStrategy(stratA);
+        vault.addStrategy(stratB);
     }
 
-    function test_Deposit_Yield_Redeem_SingleStrategy() public {
-        uint256 depositAmount = 100e18;
+    function test_Routing_DepositToHighestApy_WithdrawFromLowestApy() public {
+        uint256 amount = 100e18;
 
-        // WHEN user deposits
+        // GIVEN stratB has higher APY
+        stratA.setApy(100);
+        stratB.setApy(200);
+
+        // WHEN user deposits (should go to stratB)
         vm.startPrank(user);
-        token.approve(address(vault), depositAmount);
-        uint256 shares = vault.deposit(depositAmount, user);
+        token.approve(address(vault), 2 * amount);
+        uint256 shares1 = vault.deposit(amount, user);
         vm.stopPrank();
 
-        // THEN assets are deployed into the strategy and totalAssets tracks them
+        // THEN assets are deployed into the highest APY strategy
         assertEq(token.balanceOf(address(vault)), 0);
-        assertEq(token.balanceOf(address(strategy)), depositAmount);
-        assertEq(vault.totalAssets(), depositAmount);
+        assertEq(token.balanceOf(address(stratA)), 0);
+        assertEq(token.balanceOf(address(stratB)), amount);
+        assertEq(vault.totalAssets(), amount);
 
-        // WHEN the strategy accrues yield (simulated by minting to the strategy)
-        token.mint(address(strategy), 10e18);
+        // GIVEN APYs flip: stratA becomes higher, stratB becomes lower
+        stratA.setApy(300);
+        stratB.setApy(100);
 
-        // THEN the vault's accounting reflects the gain via totalAssets
-        assertEq(vault.totalAssets(), 110e18);
-
-        // WHEN user redeems all shares
+        // WHEN user deposits again (should go to stratA)
         vm.prank(user);
-        uint256 assetsOut = vault.redeem(shares, user, user);
+        uint256 shares2 = vault.deposit(amount, user);
 
-        // THEN all shares are burned and principal+yield is returned
+        // THEN each strategy holds the deposit that was routed to it
+        assertEq(token.balanceOf(address(stratA)), amount);
+        assertEq(token.balanceOf(address(stratB)), amount);
+        assertEq(vault.totalAssets(), 2 * amount);
+
+        // WHEN user withdraws an amount that can be satisfied by the lowest APY strategy only
+        // (lowest APY is stratB with amount balance)
+        vm.prank(user);
+        uint256 sharesBurned = vault.withdraw(amount / 2, user, user);
+
+        // THEN the lowest APY strategy is used and the higher APY one is untouched
+        assertEq(stratB.withdrawCalls(), 1);
+        assertEq(stratA.withdrawCalls(), 0);
+        assertEq(token.balanceOf(user), 1_000e18 - (2 * amount) + (amount / 2));
+
+        // WHEN user redeems the remaining shares
+        vm.prank(user);
+        uint256 assetsOut = vault.redeem(shares1 + shares2 - sharesBurned, user, user);
+
+        // THEN all shares are burned and principal is returned
         // NOTE: ERC-4626 conversions round down; redeem can be off-by-1 wei.
         assertEq(vault.balanceOf(user), 0);
-        assertApproxEqAbs(assetsOut, 110e18, 1);
-        assertEq(token.balanceOf(user), 1_000e18 - depositAmount + assetsOut);
+        assertApproxEqAbs(assetsOut + (amount / 2), 2 * amount, 1);
+        assertApproxEqAbs(token.balanceOf(user), 1_000e18, 1);
     }
 }
 

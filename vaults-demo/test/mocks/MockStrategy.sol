@@ -16,6 +16,9 @@ contract MockStrategy is IStrategy {
     IERC20 public immutable override asset;
     address public immutable override vault;
 
+    uint256 public apy;
+    uint256 public withdrawCalls;
+
     error NotVault(address caller);
     error InvalidVault(address vault);
 
@@ -23,6 +26,10 @@ contract MockStrategy is IStrategy {
         if (vault_ == address(0)) revert InvalidVault(vault_);
         asset = asset_;
         vault = vault_;
+    }
+
+    function setApy(uint256 apy_) external {
+        apy = apy_;
     }
 
     function deposit(uint256 assets) external override returns (uint256 deposited) {
@@ -33,6 +40,7 @@ contract MockStrategy is IStrategy {
 
     function withdraw(uint256 assets) external override returns (uint256 withdrawn) {
         if (msg.sender != vault) revert NotVault(msg.sender);
+        withdrawCalls++;
         asset.safeTransfer(vault, assets);
         return assets;
     }
@@ -41,8 +49,8 @@ contract MockStrategy is IStrategy {
         return asset.balanceOf(address(this));
     }
 
-    function estimateApy() external pure override returns (uint256) {
-        return 0;
+    function estimateApy() external view override returns (uint256) {
+        return apy;
     }
 }
 
