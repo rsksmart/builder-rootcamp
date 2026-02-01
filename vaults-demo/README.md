@@ -33,6 +33,11 @@ This checkpoint moves APY sorting + allocation off the user path:
 This checkpoint makes the vault **upgradeable (UUPS)**.
 In tests we deploy the vault behind an `ERC1967Proxy` and call `initialize(...)` instead of using a constructor.
 
+### Demo path (checkpoint 8: roles)
+This checkpoint replaces `Ownable` with **`AccessControl`**:
+- `DEFAULT_ADMIN_ROLE`: can add/remove strategies
+- `UPGRADER_ROLE`: can authorize UUPS upgrades
+
 ### Commands
 
 Unit tests:

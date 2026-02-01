@@ -16,6 +16,10 @@ contract MinimalVaultTest is Test {
     MockStrategy stratB;
 
     address user = makeAddr("user");
+    address attacker = makeAddr("attacker");
+
+    bytes4 private constant _ACCESS_CONTROL_UNAUTHORIZED_SELECTOR =
+        bytes4(keccak256("AccessControlUnauthorizedAccount(address,bytes32)"));
 
     function setUp() public {
         // GIVEN a minimal ERC-4626 vault with a mock asset + a funded user
@@ -34,6 +38,36 @@ contract MinimalVaultTest is Test {
         stratB = new MockStrategy(token, address(vault));
         vault.addStrategy(stratA);
         vault.addStrategy(stratB);
+    }
+
+    function test_Roles_AdminAndUpgrader() public {
+        // GIVEN a strategy a non-admin will try to add
+        MockStrategy stratC = new MockStrategy(token, address(vault));
+
+        // THEN non-admin cannot add strategies
+        vm.expectRevert(
+            abi.encodeWithSelector(_ACCESS_CONTROL_UNAUTHORIZED_SELECTOR, attacker, bytes32(0)) // DEFAULT_ADMIN_ROLE
+        );
+        vm.prank(attacker);
+        vault.addStrategy(stratC);
+
+        // THEN non-admin cannot remove strategies either
+        vm.expectRevert(
+            abi.encodeWithSelector(_ACCESS_CONTROL_UNAUTHORIZED_SELECTOR, attacker, bytes32(0)) // DEFAULT_ADMIN_ROLE
+        );
+        vm.prank(attacker);
+        vault.removeStrategy(stratA);
+
+        // THEN non-upgrader cannot upgrade
+        MinimalVault newImpl = new MinimalVault();
+        vm.expectRevert(
+            abi.encodeWithSelector(_ACCESS_CONTROL_UNAUTHORIZED_SELECTOR, attacker, vault.UPGRADER_ROLE())
+        );
+        vm.prank(attacker);
+        vault.upgradeToAndCall(address(newImpl), "");
+
+        // AND upgrader (admin in this demo) can upgrade
+        vault.upgradeToAndCall(address(newImpl), "");
     }
 
     function test_Rebalance_DeploysIdleFundsToHighestApy() public {
