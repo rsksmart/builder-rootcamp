@@ -43,6 +43,7 @@ contract MinimalVaultTropykusForkTest is Test {
         vm.startPrank(_user);
         _usdrif.approve(address(_vault), _amount);
         uint256 shares = _vault.deposit(_amount, _user);
+        _vault.rebalance(); // push idle assets into the strategy
 
         console2.log("*** Tropykus ***");
         console2.log("shares", shares);

@@ -17,6 +17,7 @@ contract MockStrategy is IStrategy {
     address public immutable override vault;
 
     uint256 public apy;
+    uint256 public depositCalls;
     uint256 public withdrawCalls;
 
     error NotVault(address caller);
@@ -34,6 +35,7 @@ contract MockStrategy is IStrategy {
 
     function deposit(uint256 assets) external override returns (uint256 deposited) {
         if (msg.sender != vault) revert NotVault(msg.sender);
+        depositCalls++;
         asset.safeTransferFrom(vault, address(this), assets);
         return assets;
     }

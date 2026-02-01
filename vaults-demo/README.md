@@ -3,7 +3,7 @@
 Minimal ERC-4626 vault demo meant for presentations.
 
 ### What’s included
-- **`MinimalVault`**: a minimal ERC-4626 vault with **multiple strategies** + simple APY routing.
+- **`MinimalVault`**: a minimal ERC-4626 vault with **multiple strategies** + `rebalance()`.
 - **`IStrategy`**: tiny interface the vault depends on (strategy pattern).
 - **`TropykusStrategy`**: Compound-like adapter used in the fork test.
 - **Tests**:
@@ -23,6 +23,11 @@ Focus files:
 The fork test proves the adapter works against live contracts:
 - `src/strategies/TropykusStrategy.sol`
 - `test/fork/MinimalVaultTropykusFork.t.sol`
+
+### Demo path (checkpoint 5: rebalance)
+This checkpoint moves APY sorting + allocation off the user path:
+- user `deposit/withdraw` stays simple (no APY scanning)
+- `rebalance()` sorts strategies and allocates funds
 
 ### Commands
 

@@ -11,8 +11,8 @@ import { IStrategy } from "./interfaces/IStrategy.sol";
 
 /**
  * @title MinimalVault
- * @notice Minimal ERC-4626 vault with multiple strategies + simple APY routing.
- * @dev Teaching version: no upgrades, no complex buffers.
+ * @notice Minimal ERC-4626 vault with multiple strategies + rebalance.
+ * @dev Teaching version: no upgrades, no complex buffers, no roles (just owner for strategy management).
  */
 contract MinimalVault is ERC4626, Ownable {
     using SafeERC20 for IERC20;
@@ -20,6 +20,9 @@ contract MinimalVault is ERC4626, Ownable {
     uint256 public constant MAX_STRATEGIES = 5;
 
     IStrategy[] public strategies;
+
+    event StrategiesSorted(address indexed highestApyStrategy);
+    event Rebalanced(uint256 withdrawnFromStrategies, uint256 depositedToStrategy);
 
     error InvalidStrategy(address strategy);
     error StrategyAssetMismatch(address strategyAsset, address vaultAsset);
@@ -56,6 +59,26 @@ contract MinimalVault is ERC4626, Ownable {
         IERC20(asset()).forceApprove(address(strategy_), type(uint256).max);
     }
 
+    /// @notice Sort strategies by APY (desc) and (for demo) consolidate funds into the highest APY strategy.
+    function rebalance() external {
+        uint256 len = strategies.length;
+        if (len == 0) return;
+
+        _sortStrategiesByApy();
+
+        // Deploy idle funds sitting in the vault into the highest APY strategy.
+        uint256 withdrawnFromStrategies = 0;
+
+        // Deposit all idle funds into the highest APY strategy.
+        uint256 idle = IERC20(asset()).balanceOf(address(this));
+        uint256 depositedToStrategy = 0;
+        if (idle > 0) {
+            depositedToStrategy = strategies[0].deposit(idle);
+        }
+
+        emit Rebalanced(withdrawnFromStrategies, depositedToStrategy);
+    }
+
     function removeStrategy(IStrategy strategy_) external onlyOwner {
         if (address(strategy_) == address(0)) revert InvalidStrategy(address(strategy_));
 
@@ -89,13 +112,7 @@ contract MinimalVault is ERC4626, Ownable {
 
     function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal override {
         super._deposit(caller, receiver, assets, shares);
-
-        if (assets == 0) return;
-        if (strategies.length == 0) return;
-
-        // Immediately deploy new deposits into the highest APY strategy.
-        IStrategy s = _highestApyStrategy();
-        s.deposit(assets);
+        // NOTE: No auto-deploy on user deposit. `rebalance()` handles deployment/allocation.
     }
 
     function _withdraw(address caller, address receiver, address owner, uint256 assets, uint256 shares)
@@ -108,57 +125,53 @@ contract MinimalVault is ERC4626, Ownable {
             if (strategies.length == 0) revert InsufficientLiquidity();
 
             uint256 needed = assets - idle;
-            uint256 pulled = _withdrawFromLowestApyFirst(needed);
+            uint256 pulled = _withdrawFromStrategies(needed);
             if (pulled < needed) revert InsufficientLiquidity();
         }
 
         super._withdraw(caller, receiver, owner, assets, shares);
     }
 
-    function _highestApyStrategy() internal view returns (IStrategy best) {
-        best = strategies[0];
-        uint256 bestApy = best.estimateApy();
-
-        for (uint256 i = 1; i < strategies.length; ++i) {
-            IStrategy s = strategies[i];
-            uint256 apy = s.estimateApy();
-            if (apy > bestApy) {
-                best = s;
-                bestApy = apy;
-            }
-        }
-    }
-
-    function _withdrawFromLowestApyFirst(uint256 needed) internal returns (uint256 pulled) {
-        // Naive selection loop: repeatedly withdraw from current lowest APY strategy.
-        // Fine for demo sizes (2 strategies), avoids sorting/storage writes.
+    function _withdrawFromStrategies(uint256 needed) internal returns (uint256 pulled) {
+        // Withdraw from strategies in reverse array order.
+        // If `rebalance()` is called regularly, this means lowest APY is attempted first.
         uint256 remaining = needed;
-
-        while (remaining > 0) {
-            (IStrategy s, uint256 bal) = _lowestApyStrategyWithBalance();
-            if (address(s) == address(0) || bal == 0) break;
-
+        for (uint256 i = strategies.length; i > 0 && remaining > 0; --i) {
+            IStrategy s = strategies[i - 1];
+            uint256 bal = s.balanceOf();
+            if (bal == 0) continue;
             uint256 toPull = bal < remaining ? bal : remaining;
             uint256 got = s.withdraw(toPull);
             pulled += got;
             if (got >= remaining) break;
-            remaining -= got;
+            remaining -= got; // defensive (got may be < toPull)
         }
     }
 
-    function _lowestApyStrategyWithBalance() internal view returns (IStrategy worst, uint256 bal) {
-        uint256 worstApy = type(uint256).max;
-        for (uint256 i = 0; i < strategies.length; ++i) {
-            IStrategy s = strategies[i];
-            uint256 b = s.balanceOf();
-            if (b == 0) continue;
-            uint256 apy = s.estimateApy();
-            if (apy < worstApy) {
-                worst = s;
-                worstApy = apy;
-                bal = b;
+    function _sortStrategiesByApy() internal {
+        uint256 len = strategies.length;
+        if (len < 2) return;
+
+        bool changed = false;
+        // Insertion sort, highest APY first. Efficient for small arrays (<= MAX_STRATEGIES).
+        for (uint256 i = 1; i < len; ++i) {
+            IStrategy key = strategies[i];
+            uint256 keyApy = key.estimateApy();
+            uint256 j = i;
+
+            while (j > 0 && strategies[j - 1].estimateApy() < keyApy) {
+                strategies[j] = strategies[j - 1];
+                changed = true;
+                --j;
+            }
+
+            if (address(strategies[j]) != address(key)) {
+                strategies[j] = key;
+                changed = true;
             }
         }
+
+        if (changed) emit StrategiesSorted(address(strategies[0]));
     }
 }
 
