@@ -6,6 +6,7 @@ import { Test } from "../dependencies/forge-std-1.11.0/src/Test.sol";
 import { MockERC20 } from "./mocks/MockERC20.sol";
 import { MinimalVault } from "../src/MinimalVault.sol";
 import { MockStrategy } from "./mocks/MockStrategy.sol";
+import { ERC1967Proxy } from "../dependencies/@openzeppelin-contracts-5.5.0/proxy/ERC1967/ERC1967Proxy.sol";
 
 /* solhint-disable func-name-mixedcase, private-vars-leading-underscore */
 contract MinimalVaultTest is Test {
@@ -19,7 +20,10 @@ contract MinimalVaultTest is Test {
     function setUp() public {
         // GIVEN a minimal ERC-4626 vault with a mock asset + a funded user
         token = new MockERC20("Mock USDRIF", "mUSDRIF");
-        vault = new MinimalVault(token, "Demo Vault", "vDEMO");
+        MinimalVault impl = new MinimalVault();
+        ERC1967Proxy proxy =
+            new ERC1967Proxy(address(impl), abi.encodeCall(MinimalVault.initialize, (token, "Demo Vault", "vDEMO", address(this))));
+        vault = MinimalVault(address(proxy));
         token.mint(user, 1_000e18);
         // ALTERNATIVE
         // deal(address(token), user, 1_000e18);

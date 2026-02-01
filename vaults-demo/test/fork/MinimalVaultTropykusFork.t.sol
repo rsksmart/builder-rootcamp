@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import { Test } from "../../dependencies/forge-std-1.11.0/src/Test.sol";
-import { console2 } from "../../dependencies/forge-std-1.11.0/src/console2.sol";
-import { IERC20 } from "../../dependencies/@openzeppelin-contracts-5.5.0/token/ERC20/IERC20.sol";
+import { Test } from "forge-std-1.11.0/src/Test.sol";
+import { console2 } from "forge-std-1.11.0/src/console2.sol";
+import { IERC20 } from "@openzeppelin-contracts-5.5.0/token/ERC20/IERC20.sol";
+import { ERC1967Proxy } from "@openzeppelin-contracts-5.5.0/proxy/ERC1967/ERC1967Proxy.sol";
 
 import { MinimalVault } from "../../src/MinimalVault.sol";
 import { TropykusStrategy } from "../../src/strategies/TropykusStrategy.sol";
@@ -20,13 +21,37 @@ contract MinimalVaultTropykusForkTest is Test {
     uint256 private _amount;
 
     function setUp() public {
+        string memory rpcUrl = vm.envOr("RPC_URL", string(""));
+        uint256 forkBlockNumber = vm.envOr("FORK_BLOCK_NUMBER", uint256(0));
+
         address usdrifAddress = vm.envOr("USDRIF_ADDRESS", address(0));
         address cTokenAddress = vm.envOr("TROPYKUS_TOKEN", address(0));
+
+        if (bytes(rpcUrl).length == 0 || usdrifAddress == address(0) || cTokenAddress == address(0)) {
+            vm.skip(true, "missing fork env vars (RPC_URL, USDRIF_ADDRESS, TROPYKUS_TOKEN)");
+            return;
+        }
+
+        if (forkBlockNumber == 0) {
+            vm.createSelectFork(rpcUrl);
+        } else {
+            vm.createSelectFork(rpcUrl, forkBlockNumber);
+        }
+
+        // Extra safety: if fork didn't actually load, avoid false-negative failures.
+        if (usdrifAddress.code.length == 0 || cTokenAddress.code.length == 0) {
+            vm.skip(true, "fork not active or addresses have no code");
+            return;
+        }
 
         _usdrif = IERC20(usdrifAddress);
         _cToken = ITropykusCToken(cTokenAddress);
 
-        _vault = new MinimalVault(_usdrif, "Fork Demo Vault", "vFORK");
+        MinimalVault impl = new MinimalVault();
+        ERC1967Proxy proxy = new ERC1967Proxy(
+            address(impl), abi.encodeCall(MinimalVault.initialize, (_usdrif, "Fork Demo Vault", "vFORK", address(this)))
+        );
+        _vault = MinimalVault(address(proxy));
         _strategy = new TropykusStrategy(_usdrif, address(_vault), _cToken);
         _vault.addStrategy(_strategy);
 

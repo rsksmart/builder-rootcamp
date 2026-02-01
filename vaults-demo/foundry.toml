@@ -28,6 +28,7 @@ default = "${RPC_URL}"
 [dependencies]
 forge-std = "1.11.0"
 "@openzeppelin-contracts" = "5.5.0"
+"@openzeppelin-contracts-upgradeable" = "5.5.0"
 
 [soldeer]
 remappings_generate = true

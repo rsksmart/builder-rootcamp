@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import { IERC20 } from "../../dependencies/@openzeppelin-contracts-5.5.0/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "../../dependencies/@openzeppelin-contracts-5.5.0/token/ERC20/utils/SafeERC20.sol";
-import { Math } from "../../dependencies/@openzeppelin-contracts-5.5.0/utils/math/Math.sol";
+import { IERC20 } from "@openzeppelin-contracts-5.5.0/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin-contracts-5.5.0/token/ERC20/utils/SafeERC20.sol";
+import { Math } from "@openzeppelin-contracts-5.5.0/utils/math/Math.sol";
 
 import { IStrategy } from "../interfaces/IStrategy.sol";
 import { ITropykusCToken } from "./interfaces/ITropykusCToken.sol";

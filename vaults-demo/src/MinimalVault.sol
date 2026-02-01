@@ -3,18 +3,21 @@ pragma solidity ^0.8.28;
 
 import { IERC20 } from "../dependencies/@openzeppelin-contracts-5.5.0/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "../dependencies/@openzeppelin-contracts-5.5.0/token/ERC20/utils/SafeERC20.sol";
-import { ERC20 } from "../dependencies/@openzeppelin-contracts-5.5.0/token/ERC20/ERC20.sol";
-import { ERC4626 } from "../dependencies/@openzeppelin-contracts-5.5.0/token/ERC20/extensions/ERC4626.sol";
-import { Ownable } from "../dependencies/@openzeppelin-contracts-5.5.0/access/Ownable.sol";
+import { ERC4626Upgradeable } from
+    "../dependencies/@openzeppelin-contracts-upgradeable-5.5.0/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import { ERC20Upgradeable } from "../dependencies/@openzeppelin-contracts-upgradeable-5.5.0/token/ERC20/ERC20Upgradeable.sol";
+import { OwnableUpgradeable } from "../dependencies/@openzeppelin-contracts-upgradeable-5.5.0/access/OwnableUpgradeable.sol";
+import { Initializable } from "../dependencies/@openzeppelin-contracts-upgradeable-5.5.0/proxy/utils/Initializable.sol";
+import { UUPSUpgradeable } from "../dependencies/@openzeppelin-contracts-upgradeable-5.5.0/proxy/utils/UUPSUpgradeable.sol";
 
 import { IStrategy } from "./interfaces/IStrategy.sol";
 
 /**
  * @title MinimalVault
  * @notice Minimal ERC-4626 vault with multiple strategies + rebalance.
- * @dev Teaching version: no upgrades, no complex buffers, no roles (just owner for strategy management).
+ * @dev Teaching version: UUPS upgradeable, no complex buffers, no roles (just owner for strategy management).
  */
-contract MinimalVault is ERC4626, Ownable {
+contract MinimalVault is Initializable, ERC4626Upgradeable, OwnableUpgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     uint256 public constant MAX_STRATEGIES = 5;
@@ -32,11 +35,15 @@ contract MinimalVault is ERC4626, Ownable {
     error StrategyAlreadyAdded(address strategy);
     error MaxStrategiesReached(uint256 maxStrategies);
 
-    constructor(IERC20 asset_, string memory name_, string memory symbol_)
-        ERC20(name_, symbol_)
-        ERC4626(asset_)
-        Ownable(msg.sender)
-    { }
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(IERC20 asset_, string memory name_, string memory symbol_, address owner_) external initializer {
+        __ERC20_init(name_, symbol_);
+        __ERC4626_init(asset_);
+        __Ownable_init(owner_);
+    }
 
     function addStrategy(IStrategy strategy_) external onlyOwner {
         if (strategies.length >= MAX_STRATEGIES) revert MaxStrategiesReached(MAX_STRATEGIES);
@@ -173,5 +180,7 @@ contract MinimalVault is ERC4626, Ownable {
 
         if (changed) emit StrategiesSorted(address(strategies[0]));
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner { }
 }
 

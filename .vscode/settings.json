@@ -1,0 +1,25 @@
+{
+  // Solidity (JuanBlanco) extension: help it resolve Foundry/Soldeer deps.
+  // This repo's Foundry project lives in `vaults-demo/` and Soldeer installs into `vaults-demo/dependencies/`.
+  "solidity.packageDefaultDependenciesDirectory": "vaults-demo/dependencies",
+  "solidity.packageDefaultDependenciesContractsDirectory": "",
+  "solidity.remappings": [
+    "@openzeppelin/contracts/=vaults-demo/dependencies/@openzeppelin-contracts-5.5.0/",
+    "@openzeppelin/contracts-upgradeable/=vaults-demo/dependencies/@openzeppelin-contracts-upgradeable-5.5.0/",
+    "forge-std/=vaults-demo/dependencies/forge-std-1.11.0/src/",
+
+    // Soldeer package-name imports used inside `dependencies/`
+    "@openzeppelin-contracts-5.5.0/=vaults-demo/dependencies/@openzeppelin-contracts-5.5.0/",
+    "@openzeppelin-contracts-upgradeable-5.5.0/=vaults-demo/dependencies/@openzeppelin-contracts-upgradeable-5.5.0/",
+    "forge-std-1.11.0/=vaults-demo/dependencies/forge-std-1.11.0/"
+  ],
+  "solidity.remappingsUnix": [
+    "@openzeppelin/contracts/=vaults-demo/dependencies/@openzeppelin-contracts-5.5.0/",
+    "@openzeppelin/contracts-upgradeable/=vaults-demo/dependencies/@openzeppelin-contracts-upgradeable-5.5.0/",
+    "forge-std/=vaults-demo/dependencies/forge-std-1.11.0/src/",
+    "@openzeppelin-contracts-5.5.0/=vaults-demo/dependencies/@openzeppelin-contracts-5.5.0/",
+    "@openzeppelin-contracts-upgradeable-5.5.0/=vaults-demo/dependencies/@openzeppelin-contracts-upgradeable-5.5.0/",
+    "forge-std-1.11.0/=vaults-demo/dependencies/forge-std-1.11.0/"
+  ]
+}
+

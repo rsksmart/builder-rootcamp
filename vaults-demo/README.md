@@ -3,7 +3,7 @@
 Minimal ERC-4626 vault demo meant for presentations.
 
 ### What’s included
-- **`MinimalVault`**: a minimal ERC-4626 vault with **multiple strategies** + `rebalance()`.
+- **`MinimalVault`**: a minimal **UUPS-upgradeable** ERC-4626 vault with **multiple strategies** + `rebalance()`.
 - **`IStrategy`**: tiny interface the vault depends on (strategy pattern).
 - **`TropykusStrategy`**: Compound-like adapter used in the fork test.
 - **Tests**:
@@ -29,12 +29,26 @@ This checkpoint moves APY sorting + allocation off the user path:
 - user `deposit/withdraw` stays simple (no APY scanning)
 - `rebalance()` sorts strategies and allocates funds
 
+### Demo path (checkpoint 6: upgradeability)
+This checkpoint makes the vault **upgradeable (UUPS)**.
+In tests we deploy the vault behind an `ERC1967Proxy` and call `initialize(...)` instead of using a constructor.
+
 ### Commands
 
 Unit tests:
 
 ```bash
 cd vaults-demo && forge test -vvv
+```
+
+Upgrade script (UUPS; requires env vars):
+
+```bash
+cd vaults-demo && \
+RPC_URL="..." \
+PRIVATE_KEY="..." \
+PROXY="0x..." \
+forge script -vvv script/UpgradeMinimalVault.s.sol:UpgradeMinimalVault --rpc-url "$RPC_URL" --broadcast
 ```
 
 Tropykus fork test (requires env vars):
