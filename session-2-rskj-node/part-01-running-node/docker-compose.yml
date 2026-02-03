@@ -1,0 +1,18 @@
+services:
+  rskj:
+    image: rsksmart/rskj:latest
+    container_name: rskj-regtest
+    ports:
+      - "4444:4444"  # HTTP JSON-RPC
+      - "4445:4445"  # WebSocket JSON-RPC
+    volumes:
+      - rskj-database:/var/lib/rsk/database
+    command: [
+      "--regtest",
+      "-Dlogging.stdout=INFO",
+    ]
+    restart: unless-stopped
+
+volumes:
+  rskj-database:
+    name: rskj-regtest-data
