@@ -1,0 +1,15 @@
+{
+  "name": "vaults-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal ERC-4626 vault demo (Foundry)",
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test -vvv",
+    "test:fork": "source .env && forge test -vvv --match-path \"test/fork/*\" --fork-url \"$RPC_URL\"",
+    "fmt": "forge fmt",
+    "clean": "rm -rf out cache"
+  }
+}
+
+

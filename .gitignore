@@ -13,3 +13,9 @@ states/
 # Optional
 .env
 .env.local
+vaults-demo/dependencies
+vaults-demo/cache
+vaults-demo/.DS_Store
+vaults-demo/out
+
+.DS_Store
